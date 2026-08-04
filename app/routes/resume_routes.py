@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends,HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.schemas.resume_schema import ResumeCreate, ResumeOut
+from app.database import get_db 
+from app.services.ai_service import analyze_resume
+from app.schemas.resume_schema import (
+    ResumeAnalysisOut,
+    ResumeCreate,
+    ResumeOut,
+)
 from app.services.resume_service import (
     create_resume_service,
     delete_resume_service,
@@ -41,6 +46,39 @@ def update_resume(
     return update_resume_service(resume_id, updated_resume, db)
 
 
-@router.delete("/{resume_id}")
-def delete_resume(resume_id: int, db: Session = Depends(get_db)):
-    return delete_resume_service(resume_id, db)
+@router.get(
+    "/{resume_id}/Aianalysis",
+    response_model=ResumeAnalysisOut,
+)
+def get_resume_analysis(
+    resume_id: int,
+    db: Session = Depends(get_db),
+):
+    # Get the existing resume from SQLite
+    resume = get_resume_by_id_service(resume_id, db)
+
+    try:
+        # Send the saved resume text to Gemini
+        analysis = analyze_resume(resume.resume_text)
+
+        return {
+            "resume_id": resume.id,
+            "candidate_name": resume.candidate_name,
+            "analysis": analysis,
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+
+ 
+    
+    

@@ -15,3 +15,8 @@ class ResumeOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ResumeAnalysisOut(BaseModel):
+    resume_id: int
+    candidate_name: str
+    analysis: str

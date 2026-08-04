@@ -1,3 +1,4 @@
 project.db
+.env
 __pycache__/
 .venv/
