@@ -43,7 +43,7 @@ def create_resume(
 
 
 @router.get(
-    "/{resume_id}/analysis",
+    "/analysis/{resume_id}",
     response_model=ResumeAnalysisOut,
 )
 def get_resume_analysis(
