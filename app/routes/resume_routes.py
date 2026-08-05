@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends,HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import get_db 
+from app.database import get_db
 from app.services.ai_service import analyze_resume
 from app.schemas.resume_schema import (
     ResumeAnalysisOut,
@@ -16,20 +16,25 @@ from app.services.resume_service import (
     update_resume_service,
 )
 
-router = APIRouter(prefix="/resume", tags=["Resumes"])
+
+router = APIRouter(
+    prefix="/resume",
+    tags=["Resumes"],
+)
 
 
 @router.get("", response_model=list[ResumeOut])
-def get_all_resumes(db: Session = Depends(get_db)):
+def get_all_resumes(
+    db: Session = Depends(get_db),
+):
     return get_all_resumes_service(db)
 
 
-@router.get("/{resume_id}", response_model=ResumeOut)
-def get_resume(resume_id: int, db: Session = Depends(get_db)):
-    return get_resume_by_id_service(resume_id, db)
-
-
-@router.post("", response_model=ResumeOut, status_code=201)
+@router.post(
+    "",
+    response_model=ResumeOut,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_resume(
     resume: ResumeCreate,
     db: Session = Depends(get_db),
@@ -37,34 +42,27 @@ def create_resume(
     return create_resume_service(resume, db)
 
 
-@router.put("/{resume_id}", response_model=ResumeOut)
-def update_resume(
-    resume_id: int,
-    updated_resume: ResumeCreate,
-    db: Session = Depends(get_db),
-):
-    return update_resume_service(resume_id, updated_resume, db)
-
-
 @router.get(
-    "/Aianalysis/{resume_id}",
+    "/{resume_id}/analysis",
     response_model=ResumeAnalysisOut,
 )
 def get_resume_analysis(
     resume_id: int,
     db: Session = Depends(get_db),
 ):
-    
+    # Get the saved resume from the database
     resume = get_resume_by_id_service(resume_id, db)
 
     try:
-        # Send the saved resume text to Gemini
-        analysis = analyze_resume(resume.resume_text)
+        # Send the resume text to Gemini
+        analysis_result = analyze_resume(
+            resume.resume_text
+        )
 
         return {
             "resume_id": resume.id,
             "candidate_name": resume.candidate_name,
-            "analysis": analysis,
+            "analysis": analysis_result,
         }
 
     except ValueError as error:
@@ -79,6 +77,46 @@ def get_resume_analysis(
             detail=str(error),
         ) from error
 
- 
-    
-    
+
+@router.get(
+    "/{resume_id}",
+    response_model=ResumeOut,
+)
+def get_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_resume_by_id_service(
+        resume_id,
+        db,
+    )
+
+
+@router.put(
+    "/{resume_id}",
+    response_model=ResumeOut,
+)
+def update_resume(
+    resume_id: int,
+    updated_resume: ResumeCreate,
+    db: Session = Depends(get_db),
+):
+    return update_resume_service(
+        resume_id,
+        updated_resume,
+        db,
+    )
+
+
+@router.delete(
+    "/{resume_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+):
+    delete_resume_service(
+        resume_id,
+        db,
+    )

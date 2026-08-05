@@ -1,10 +1,10 @@
-import json
 import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 from google import genai
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,35 +27,45 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 
-def analyze_resume(resume_text: str) -> dict:
+def analyze_resume(resume_text: str) -> str:
     if not resume_text or not resume_text.strip():
         raise ValueError("Resume text cannot be empty.")
 
     prompt = f"""
 You are a professional ATS resume reviewer.
 
-Analyze this resume.
+Analyze only the information present in this resume.
 
 Resume:
 {resume_text}
 
-Return ONLY valid JSON in this format:
+Return the response exactly in the following format:
 
-{{
-  "score": 0,
-  "strengths": ["", "", ""],
-  "missing_skills": ["", "", ""],
-  "summary": ""
-}}
+Score: <score>/100
+
+Strengths:
+- <strength 1>
+- <strength 2>
+- <strength 3>
+
+Missing Skills:
+- <missing skill 1>
+- <missing skill 2>
+- <missing skill 3>
+
+Summary:
+<one sentence summary>
 
 Rules:
-- Score must be between 0 and 100.
 - Return exactly 3 strengths.
 - Return exactly 3 missing skills.
-- Summary must be exactly one sentence.
-- Do not use Markdown.
-- Do not wrap the JSON inside ```json.
-- Do not include any text outside the JSON.
+- Score must be between 0 and 100.
+- Summary must contain only one sentence.
+- Leave one blank line between each section.
+- Do not use Markdown symbols such as **, #, or ``` .
+- Do not add an introduction or extra conclusion.
+- Do not invent information that is not present in the resume.
+- Keep every point short and clear.
 """
 
     logger.info("Resume AI analysis started")
@@ -71,15 +81,13 @@ Rules:
 
         logger.info("Resume AI analysis completed")
 
-        return json.loads(response.text)
-
-    except json.JSONDecodeError:
-        logger.error("Gemini returned invalid JSON.")
-
-        raise RuntimeError("AI returned an invalid JSON response.")
+        return response.text.strip()
 
     except Exception as error:
-        logger.error("Resume AI analysis failed: %s", error)
+        logger.error(
+            "Resume AI analysis failed: %s",
+            error,
+        )
 
         raise RuntimeError(
             "AI resume analysis failed."
