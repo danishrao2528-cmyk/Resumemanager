@@ -20,3 +20,7 @@ class ResumeAnalysisOut(BaseModel):
     resume_id: int
     candidate_name: str
     analysis: str
+
+
+
+    

@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.services.ai_service import analyze_resume
 from app.schemas.resume_schema import (
     ResumeAnalysisOut,
     ResumeCreate,
     ResumeOut,
 )
+from app.services.ai_service import analyze_resume
 from app.services.resume_service import (
     create_resume_service,
     delete_resume_service,
@@ -15,15 +15,21 @@ from app.services.resume_service import (
     get_resume_by_id_service,
     update_resume_service,
 )
+from app.utils.auth import authenticate_user
 
 
 router = APIRouter(
     prefix="/resume",
     tags=["Resumes"],
+    dependencies=[Depends(authenticate_user)],
 )
 
 
-@router.get("", response_model=list[ResumeOut])
+@router.get(
+    "",
+    response_model=list[ResumeOut],
+    status_code=status.HTTP_200_OK,
+)
 def get_all_resumes(
     db: Session = Depends(get_db),
 ):
@@ -39,24 +45,29 @@ def create_resume(
     resume: ResumeCreate,
     db: Session = Depends(get_db),
 ):
-    return create_resume_service(resume, db)
+    return create_resume_service(
+        resume,
+        db,
+    )
 
 
 @router.get(
     "/analysis/{resume_id}",
     response_model=ResumeAnalysisOut,
+    status_code=status.HTTP_200_OK,
 )
 def get_resume_analysis(
     resume_id: int,
     db: Session = Depends(get_db),
 ):
-    # Get the saved resume from the database
-    resume = get_resume_by_id_service(resume_id, db)
+    resume = get_resume_by_id_service(
+        resume_id,
+        db,
+    )
 
     try:
-        # Send the resume text to Gemini
         analysis_result = analyze_resume(
-            resume.resume_text
+            resume.resume_text,
         )
 
         return {
@@ -77,10 +88,17 @@ def get_resume_analysis(
             detail=str(error),
         ) from error
 
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Resume analysis failed unexpectedly.",
+        ) from error
+
 
 @router.get(
     "/{resume_id}",
     response_model=ResumeOut,
+    status_code=status.HTTP_200_OK,
 )
 def get_resume(
     resume_id: int,
@@ -95,6 +113,7 @@ def get_resume(
 @router.put(
     "/{resume_id}",
     response_model=ResumeOut,
+    status_code=status.HTTP_200_OK,
 )
 def update_resume(
     resume_id: int,
@@ -120,3 +139,5 @@ def delete_resume(
         resume_id,
         db,
     )
+
+    return None

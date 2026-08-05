@@ -84,7 +84,7 @@ Rules:
         return response.text.strip()
 
     except Exception as error:
-        logger.error(
+        logger.exception(
             "Resume AI analysis failed: %s",
             error,
         )
