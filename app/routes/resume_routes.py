@@ -47,14 +47,14 @@ def update_resume(
 
 
 @router.get(
-    "/{resume_id}/Aianalysis",
+    "/Aianalysis/{resume_id}",
     response_model=ResumeAnalysisOut,
 )
 def get_resume_analysis(
     resume_id: int,
     db: Session = Depends(get_db),
 ):
-    # Get the existing resume from SQLite
+    
     resume = get_resume_by_id_service(resume_id, db)
 
     try:

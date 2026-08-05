@@ -1,10 +1,10 @@
+import json
 import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 from google import genai
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,26 +27,35 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 
-def analyze_resume(resume_text: str) -> str:
+def analyze_resume(resume_text: str) -> dict:
     if not resume_text or not resume_text.strip():
         raise ValueError("Resume text cannot be empty.")
 
     prompt = f"""
 You are a professional ATS resume reviewer.
 
-Analyze the resume below and provide:
-
-1. Score out of 100
-2. Strengths
-3. Weaknesses
-4. Missing skills
-5. Improvement suggestions
-6. Short overall summary
-
-Do not invent information that is not present in the resume.
+Analyze this resume.
 
 Resume:
 {resume_text}
+
+Return ONLY valid JSON in this format:
+
+{{
+  "score": 0,
+  "strengths": ["", "", ""],
+  "missing_skills": ["", "", ""],
+  "summary": ""
+}}
+
+Rules:
+- Score must be between 0 and 100.
+- Return exactly 3 strengths.
+- Return exactly 3 missing skills.
+- Summary must be exactly one sentence.
+- Do not use Markdown.
+- Do not wrap the JSON inside ```json.
+- Do not include any text outside the JSON.
 """
 
     logger.info("Resume AI analysis started")
@@ -62,7 +71,12 @@ Resume:
 
         logger.info("Resume AI analysis completed")
 
-        return response.text
+        return json.loads(response.text)
+
+    except json.JSONDecodeError:
+        logger.error("Gemini returned invalid JSON.")
+
+        raise RuntimeError("AI returned an invalid JSON response.")
 
     except Exception as error:
         logger.error("Resume AI analysis failed: %s", error)
