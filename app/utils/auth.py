@@ -45,10 +45,13 @@ def verify_password(
     plain_password: str,
     hashed_password: str,
 ) -> bool:
-    return password_hash.verify(
-        plain_password,
-        hashed_password,
-    )
+    try:
+        return password_hash.verify(
+            plain_password,
+            hashed_password,
+        )
+    except Exception:
+        return False
 
 
 def authenticate_user(
@@ -111,8 +114,8 @@ def get_current_user(
         if username is None:
             raise authentication_error
 
-    except InvalidTokenError:
-        raise authentication_error
+    except InvalidTokenError as error:
+        raise authentication_error from error
 
     if username != ADMIN_USERNAME:
         raise authentication_error
