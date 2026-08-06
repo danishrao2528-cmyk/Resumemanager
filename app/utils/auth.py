@@ -1,49 +1,120 @@
 import os
-import secrets
+from datetime import datetime, timedelta, timezone
 
+import jwt
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-
-from app.utils.logger import logger
+from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import InvalidTokenError
+from pwdlib import PasswordHash
 
 
 load_dotenv()
 
-security = HTTPBasic()
 
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "change-this-secret-key",
+)
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+ADMIN_USERNAME = os.getenv(
+    "ADMIN_USERNAME",
+    "admin",
+)
+
+ADMIN_PASSWORD_HASH = os.getenv(
+    "ADMIN_PASSWORD_HASH",
+)
+
+
+password_hash = PasswordHash.recommended()
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/login",
+)
+
+
+def hash_password(password: str) -> str:
+    return password_hash.hash(password)
+
+
+def verify_password(
+    plain_password: str,
+    hashed_password: str,
+) -> bool:
+    return password_hash.verify(
+        plain_password,
+        hashed_password,
+    )
 
 
 def authenticate_user(
-    credentials: HTTPBasicCredentials = Depends(security),
+    username: str,
+    password: str,
+) -> bool:
+    if username != ADMIN_USERNAME:
+        return False
+
+    if not ADMIN_PASSWORD_HASH:
+        return False
+
+    return verify_password(
+        password,
+        ADMIN_PASSWORD_HASH,
+    )
+
+
+def create_access_token(
+    username: str,
 ) -> str:
-    username_is_correct = secrets.compare_digest(
-        credentials.username,
-        ADMIN_USERNAME,
+    expiration_time = datetime.now(
+        timezone.utc
+    ) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    password_is_correct = secrets.compare_digest(
-        credentials.password,
-        ADMIN_PASSWORD,
+    payload = {
+        "sub": username,
+        "exp": expiration_time,
+    }
+
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
     )
 
-    if not username_is_correct or not password_is_correct:
-        logger.warning(
-            "Failed login attempt for username: %s",
-            credentials.username,
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+) -> str:
+    authentication_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={
+            "WWW-Authenticate": "Bearer",
+        },
+    )
+
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
         )
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+        username = payload.get("sub")
 
-    logger.info(
-        "User authenticated successfully: %s",
-        credentials.username,
-    )
+        if username is None:
+            raise authentication_error
 
-    return credentials.username
+    except InvalidTokenError:
+        raise authentication_error
+
+    if username != ADMIN_USERNAME:
+        raise authentication_error
+
+    return username

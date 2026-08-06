@@ -15,13 +15,15 @@ from app.services.resume_service import (
     get_resume_by_id_service,
     update_resume_service,
 )
-from app.utils.auth import authenticate_user
+from app.utils.auth import get_current_user
 
 
 router = APIRouter(
     prefix="/resume",
     tags=["Resumes"],
-    dependencies=[Depends(authenticate_user)],
+    dependencies=[
+        Depends(get_current_user),
+    ],
 )
 
 

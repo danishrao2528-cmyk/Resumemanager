@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 import logging
+
 from app.database import Base, engine
 from app.models.resume_model import Resume
+from app.routes.auth_routes import router as auth_router
 from app.routes.resume_routes import router as resume_router
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,11 +15,18 @@ logging.basicConfig(
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Resume Manager API")
 
+app = FastAPI(
+    title="Resume Manager API",
+)
+
+
+app.include_router(auth_router)
 app.include_router(resume_router)
 
 
 @app.get("/")
 def home():
-    return {"message": "API is working"}
+    return {
+        "message": "API is working",
+    }
