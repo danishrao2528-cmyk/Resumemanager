@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import logging
-
+from app.models.user_model import User
 from app.database import Base, engine
 from app.models.resume_model import Resume
 from app.routes.auth_routes import router as auth_router
