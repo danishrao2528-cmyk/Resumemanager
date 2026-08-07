@@ -1,6 +1,6 @@
 import streamlit as st
 
-from app.frontend.api import (
+from api import (
     get_all_resumes,
     show_api_error,
 )

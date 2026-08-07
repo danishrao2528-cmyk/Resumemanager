@@ -1,6 +1,6 @@
 import streamlit as st
 
-from app.frontend.api import (
+from api import (
     analyze_resume,
     create_resume,
     delete_resume,

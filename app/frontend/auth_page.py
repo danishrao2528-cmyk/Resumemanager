@@ -1,6 +1,6 @@
 import streamlit as st
 
-from app.frontend.api import (
+from api import (
     login_user,
     register_user,
 )
