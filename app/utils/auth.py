@@ -16,10 +16,7 @@ from app.models.user_model import User
 load_dotenv()
 
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "change-this-secret-key",
-)
+SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-key",)
 
 ALGORITHM = "HS256"
 
@@ -34,16 +31,11 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-def hash_password(
-    password: str,
-) -> str:
+def hash_password(password: str,) -> str:
     return password_hash.hash(password)
 
 
-def verify_password(
-    plain_password: str,
-    hashed_password: str,
-) -> bool:
+def verify_password(plain_password: str,hashed_password: str,) -> bool:
     try:
         return password_hash.verify(
             plain_password,
@@ -53,11 +45,7 @@ def verify_password(
         return False
 
 
-def authenticate_user(
-    username: str,
-    password: str,
-    db: Session,
-):
+def authenticate_user(username: str,password: str, db: Session,):
     user = (
         db.query(User)
         .filter(
@@ -78,9 +66,7 @@ def authenticate_user(
     return user
 
 
-def create_access_token(
-    username: str,
-) -> str:
+def create_access_token(username: str,) -> str:
     expiration_time = (
         datetime.now(timezone.utc)
         + timedelta(

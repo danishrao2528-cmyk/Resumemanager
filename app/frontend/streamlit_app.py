@@ -12,13 +12,10 @@ from resume_pages import (
 )
 from sidebar import show_sidebar
 
-
 st.set_page_config(
     page_title="Resume Manager",
     layout="wide",
 )
-
-
 if "token" not in st.session_state:
     st.session_state.token = None
 

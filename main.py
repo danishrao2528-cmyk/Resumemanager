@@ -5,6 +5,7 @@ from app.database import Base, engine
 from app.models.resume_model import Resume
 from app.routes.auth_routes import router as auth_router
 from app.routes.resume_routes import router as resume_router
+from app.models.user_model import User
 
 
 logging.basicConfig(
