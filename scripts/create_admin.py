@@ -20,18 +20,14 @@ load_dotenv(
 )
 
 
-# =========================================================
-# ADMIN ACCOUNT SETTINGS
-# =========================================================
+
 
 ADMIN_FULL_NAME="System Admin"
 ADMIN_USERNAME="admin"
 ADMIN_EMAIL="admin@resumemanager.com"
 
 
-# =========================================================
-# CREATE / UPDATE ADMIN
-# =========================================================
+
 
 def create_admin():
     password = os.getenv("ADMIN_PASSWORD")
@@ -121,9 +117,7 @@ def create_admin():
         db.close()
 
 
-# =========================================================
-# RUN SCRIPT DIRECTLY
-# =========================================================
+
 
 if __name__ == "__main__":
     create_admin()
