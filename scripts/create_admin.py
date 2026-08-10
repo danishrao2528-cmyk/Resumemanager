@@ -24,9 +24,9 @@ load_dotenv(
 # ADMIN ACCOUNT SETTINGS
 # =========================================================
 
-ADMIN_FULL_NAME = "System Admin"
-ADMIN_USERNAME = "admin"
-ADMIN_EMAIL = "admin@resumemanager.com"
+ADMIN_FULL_NAME="System Admin"
+ADMIN_USERNAME="admin"
+ADMIN_EMAIL="admin@resumemanager.com"
 
 
 # =========================================================
