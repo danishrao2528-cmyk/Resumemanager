@@ -1,8 +1,14 @@
+import os
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
-DATABASE_URL = "sqlite:///./project.db"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///./project.db",
+)
+
 
 engine = create_engine(
     DATABASE_URL,
@@ -11,7 +17,10 @@ engine = create_engine(
 
 
 @event.listens_for(engine, "connect")
-def enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+def enable_sqlite_foreign_keys(
+    dbapi_connection,
+    _connection_record,
+):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
@@ -23,12 +32,15 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
+
 Base = declarative_base()
 
 
 def get_db():
     db = SessionLocal()
+
     try:
         yield db
+
     finally:
         db.close()
