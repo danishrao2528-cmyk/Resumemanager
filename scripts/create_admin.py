@@ -14,7 +14,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 ADMIN_FULL_NAME = "System Admin"
 ADMIN_USERNAME = "admin"
-ADMIN_EMAIL = "admin@resumemanager.local"
+ADMIN_EMAIL = "admin@resumemanager.com"
 
 
 def create_admin():
