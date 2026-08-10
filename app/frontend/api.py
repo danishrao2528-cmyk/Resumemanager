@@ -8,7 +8,13 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+API_URL = st.secrets.get(
+    "API_URL",
+    os.getenv(
+        "API_URL",
+        "http://127.0.0.1:8000",
+    ),
+).rstrip("/")
 
 
 def get_headers():
