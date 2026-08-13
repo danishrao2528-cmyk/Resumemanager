@@ -23,7 +23,7 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is required. Add it to .env or deployment variables.")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 80
+ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
 password_hash = PasswordHash.recommended()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
