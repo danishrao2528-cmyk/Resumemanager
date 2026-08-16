@@ -26,7 +26,12 @@ def _save_login(data):
     st.session_state.username = data["username"]
     st.session_state.email = data["email"]
     st.session_state.role = data["role"]
-    cookie_controller.set(COOKIE_NAME, token)
+
+    try:
+        cookie_controller.set(COOKIE_NAME, token)
+    except Exception:
+        # Login should still work even if the browser blocks the persistence cookie.
+        pass
 
 
 def _login_panel(expected_role: str):
@@ -75,11 +80,14 @@ def _login_panel(expected_role: str):
         return
 
     data = response.json()
-    if data.get("role") != expected_role:
-        if expected_role == "admin":
-            st.error("This account does not have admin access.")
-        else:
-            st.error("This is an admin account. Please use Admin Login.")
+    actual_role = data.get("role")
+
+    if expected_role == "admin":
+        if actual_role not in {"admin", "super_admin"}:
+            st.error("This account does not have administrator access.")
+            return
+    elif actual_role != "candidate":
+        st.error("This is an administrator account. Please use Admin Login.")
         return
 
     _save_login(data)
@@ -159,7 +167,7 @@ def _show_left_panel():
     with c2:
         with st.container(border=True):
             st.markdown("### 👥 Role Access")
-            st.caption("Dedicated candidate and administrator workspaces.")
+            st.caption("Candidate, administrator, and Super Admin workspaces.")
 
     with st.container(border=True):
         c1, c2 = st.columns([1, 5], vertical_alignment="center")
@@ -173,6 +181,10 @@ def _show_left_panel():
 
 
 def show_auth_page():
+    notice = st.session_state.pop("auth_notice", None)
+    if notice:
+        st.warning(notice)
+
     if "next_auth_mode" in st.session_state:
         st.session_state.auth_mode = st.session_state.pop("next_auth_mode")
     if "auth_mode" not in st.session_state:

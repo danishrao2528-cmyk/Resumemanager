@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user_model import User
 from app.schemas.resume_schema import AIRequirementIn, AISearchOut, ResumeOut
-from app.schemas.user_schema import AdminStats, CandidateDetail, CandidateListItem
+from app.schemas.user_schema import AdminCreate, AdminStats, CandidateDetail, CandidateListItem, UserOut
 from app.services.admin_service import (
+    create_admin_account_service,
     delete_candidate_service,
+    get_admin_accounts_service,
     get_admin_stats_service,
     get_candidate_detail_service,
     get_candidates_service,
@@ -21,7 +23,7 @@ from app.services.resume_service import (
     get_all_resumes_admin_service,
     get_resume_admin_service,
 )
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, get_current_super_admin
 from app.utils.logger import logger
 
 
@@ -78,6 +80,23 @@ def resume_detail(
     db: Session = Depends(get_db),
 ):
     return get_resume_admin_service(resume_id, db)
+
+
+@router.get("/admins", response_model=list[UserOut])
+def list_admin_accounts(
+    _super_admin: User = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+):
+    return get_admin_accounts_service(db)
+
+
+@router.post("/admins", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def create_admin_account(
+    admin_data: AdminCreate,
+    _super_admin: User = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+):
+    return create_admin_account_service(admin_data, db)
 
 
 @router.post("/ai-search", response_model=AISearchOut)

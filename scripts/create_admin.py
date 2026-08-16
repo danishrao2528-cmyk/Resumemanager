@@ -4,120 +4,80 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from app.database import Base, SessionLocal, engine
+from app.models.auth_session_model import AuthSession  # noqa: F401
 from app.models.resume_model import Resume  # noqa: F401
 from app.models.user_model import User
 from app.utils.auth import hash_password
 
 
-# =========================================================
-# LOAD ENVIRONMENT VARIABLES
-# =========================================================
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 
-load_dotenv(
-    PROJECT_ROOT / ".env"
-)
-
-
-
-
-ADMIN_FULL_NAME="System Admin"
-ADMIN_USERNAME="admin"
-ADMIN_EMAIL="admin@resumemanager.com"
+SUPER_ADMIN_FULL_NAME = os.getenv("SUPER_ADMIN_FULL_NAME", "System Admin")
+SUPER_ADMIN_USERNAME = os.getenv("SUPER_ADMIN_USERNAME", "admin")
+SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "admin@resumemanager.com").strip().lower()
 
 
-
-
-def create_admin():
-    password = os.getenv("ADMIN_PASSWORD")
+def create_super_admin():
+    # New name is preferred, but ADMIN_PASSWORD is kept as a fallback so your
+    # existing .env/deployment variable does not suddenly stop working.
+    password = os.getenv("SUPER_ADMIN_PASSWORD") or os.getenv("ADMIN_PASSWORD")
 
     if not password:
         raise RuntimeError(
-            "ADMIN_PASSWORD is missing. "
-            "Add it to .env locally or Railway Variables."
+            "SUPER_ADMIN_PASSWORD is missing. Add it to .env or deployment variables."
         )
 
-    Base.metadata.create_all(
-        bind=engine
-    )
-
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
     try:
-        existing_admin = (
+        existing_user = (
             db.query(User)
             .filter(
-                User.role == "admin"
+                (User.email == SUPER_ADMIN_EMAIL)
+                | (User.username == SUPER_ADMIN_USERNAME)
             )
             .first()
         )
 
-        if existing_admin:
-            print(
-                f"Admin already exists: "
-                f"{existing_admin.email}"
-            )
-
-            # Keep the admin information consistent
-            existing_admin.full_name = ADMIN_FULL_NAME
-            existing_admin.username = ADMIN_USERNAME
-            existing_admin.email = ADMIN_EMAIL
-
-            # Reset the password using ADMIN_PASSWORD
-            existing_admin.password_hash = (
-                hash_password(password)
-            )
-
+        if existing_user:
+            existing_user.full_name = SUPER_ADMIN_FULL_NAME
+            existing_user.username = SUPER_ADMIN_USERNAME
+            existing_user.email = SUPER_ADMIN_EMAIL
+            existing_user.password_hash = hash_password(password)
+            existing_user.role = "super_admin"
             db.commit()
-            db.refresh(existing_admin)
-
-            print(
-                "Existing admin account updated successfully."
-            )
-
-            print(
-                f"Admin email: {ADMIN_EMAIL}"
-            )
-
+            db.refresh(existing_user)
+            print("Existing account promoted/updated as Super Admin.")
+            print(f"Super Admin email: {existing_user.email}")
             return
 
-        admin = User(
-            full_name=ADMIN_FULL_NAME,
-            username=ADMIN_USERNAME,
-            email=ADMIN_EMAIL,
-            password_hash=hash_password(
-                password
-            ),
-            role="admin",
+        super_admin = User(
+            full_name=SUPER_ADMIN_FULL_NAME,
+            username=SUPER_ADMIN_USERNAME,
+            email=SUPER_ADMIN_EMAIL,
+            password_hash=hash_password(password),
+            role="super_admin",
         )
-
-        db.add(admin)
+        db.add(super_admin)
         db.commit()
-        db.refresh(admin)
-
-        print(
-            "Admin created successfully."
-        )
-
-        print(
-            f"Admin email: {ADMIN_EMAIL}"
-        )
+        db.refresh(super_admin)
+        print("Super Admin created successfully.")
+        print(f"Super Admin email: {super_admin.email}")
 
     except Exception as error:
         db.rollback()
-
-        print(
-            f"Failed to create/update admin: {error}"
-        )
-
+        print(f"Failed to create/update Super Admin: {error}")
         raise
-
     finally:
         db.close()
 
 
+# Backward-compatible function name if you previously imported create_admin().
+def create_admin():
+    create_super_admin()
 
 
 if __name__ == "__main__":
-    create_admin()
+    create_super_admin()

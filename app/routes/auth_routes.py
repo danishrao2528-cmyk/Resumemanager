@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -9,13 +9,17 @@ from app.schemas.user_schema import Token, UserCreate, UserOut
 from app.utils.auth import (
     authenticate_user,
     create_access_token,
+    create_auth_session,
     get_current_user,
+    get_current_user_no_touch,
     hash_password,
+    revoke_token_session,
 )
 from app.utils.logger import logger
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -61,7 +65,6 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    # OAuth2PasswordRequestForm calls this field `username`, but this app uses email login.
     email = form_data.username.strip().lower()
     user = authenticate_user(email=email, password=form_data.password, db=db)
 
@@ -73,8 +76,20 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(user.id)
-    logger.info("Successful login user_id=%s role=%s", user.id, user.role)
+    try:
+        auth_session = create_auth_session(user.id, db)
+        access_token = create_access_token(user.id, auth_session)
+    except Exception as error:
+        db.rollback()
+        logger.exception("Unable to create login session for user_id=%s", user.id)
+        raise HTTPException(status_code=500, detail="Unable to create login session") from error
+
+    logger.info(
+        "Successful login user_id=%s role=%s session_id=%s",
+        user.id,
+        user.role,
+        auth_session.id,
+    )
 
     return {
         "access_token": access_token,
@@ -85,8 +100,31 @@ def login(
         "email": user.email,
         "role": user.role,
     }
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    revoke_token_session(token, db)
+    return None
+
+
 @router.get("/me", response_model=UserOut)
 def get_logged_in_user(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+
+@router.get("/session-status")
+def session_status(
+    current_user: User = Depends(get_current_user_no_touch),
+):
+    # Important: this endpoint deliberately does NOT update last_activity_at.
+    return {
+        "authenticated": True,
+        "user_id": current_user.id,
+        "role": current_user.role,
+    }

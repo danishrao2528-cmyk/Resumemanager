@@ -13,21 +13,18 @@ from admin_pages import (
     all_resumes_page,
     candidates_page,
 )
-from api import get_current_user_profile
+from api import check_session, clear_local_auth, get_current_user_profile
 from auth_page import show_auth_page
-from candidate_pages import (
-    candidate_dashboard,
-    my_resume_page,
-)
+from candidate_pages import candidate_dashboard, my_resume_page
 from cookies import cookie_controller
 from sidebar import show_sidebar
 from styles import apply_styles
+from super_admin_page import admin_management_page
 
 
 COOKIE_NAME = "resume_manager_token"
 
 apply_styles()
-
 
 for key, default in {
     "token": None,
@@ -44,105 +41,71 @@ for key, default in {
         st.session_state[key] = default
 
 
-def _clear_login_state():
-    st.session_state.token = None
-    st.session_state.user_id = None
-    st.session_state.full_name = None
-    st.session_state.username = None
-    st.session_state.email = None
-    st.session_state.role = None
-
-
 def _restore_login():
-    # Already logged in during this Streamlit session
     if st.session_state.token:
         return
 
-    # Try to recover JWT from browser cookie
-    saved_token = cookie_controller.get(
-        COOKIE_NAME
-    )
-
-    # No cookie = normal logged-out state
+    saved_token = cookie_controller.get(COOKIE_NAME)
     if not saved_token:
         return
 
-    # api.py uses st.session_state.token
-    # to build the Authorization header
+    # The cookie is never trusted by itself. The backend must validate it and
+    # return the user associated with this exact JWT/session id.
     st.session_state.token = saved_token
-
     response = get_current_user_profile()
 
-    # JWT is valid
-    if (
-        response is not None
-        and response.status_code == 200
-    ):
+    if response is not None and response.status_code == 200:
         user = response.json()
-
         st.session_state.user_id = user["id"]
         st.session_state.full_name = user["full_name"]
         st.session_state.username = user["username"]
         st.session_state.email = user["email"]
         st.session_state.role = user["role"]
-
         return
 
-    # JWT expired / invalid / user no longer exists
-    _clear_login_state()
+    clear_local_auth()
 
-    try:
-        cookie_controller.remove(
-            COOKIE_NAME
-        )
-    except Exception:
-        pass
+
+@st.fragment(run_every="30s")
+def _session_watchdog():
+    """
+    Check whether an open page has become idle/expired even when the user does
+    nothing. /auth/session-status intentionally does not refresh last_activity.
+    """
+    if not st.session_state.get("token"):
+        return
+    check_session()
 
 
 _restore_login()
 
-
-# -----------------------------------
-# NOT LOGGED IN
-# -----------------------------------
-
 if not st.session_state.token:
     show_auth_page()
-
-
-# -----------------------------------
-# LOGGED IN
-# -----------------------------------
-
 else:
+    _session_watchdog()
     page = show_sidebar()
+    role = st.session_state.role
 
-    # ADMIN
-    if st.session_state.role == "admin":
-
+    if role in {"admin", "super_admin"}:
         if page == "Dashboard":
             admin_dashboard()
-
         elif page == "Candidates":
             candidates_page()
-
         elif page == "All Resumes":
             all_resumes_page()
-
         elif page == "AI Candidate Search":
             ai_search_page()
+        elif page == "Admin Management" and role == "super_admin":
+            admin_management_page()
+        else:
+            st.error("You do not have permission to open this page.")
 
-    # CANDIDATE
-    elif st.session_state.role == "candidate":
-
+    elif role == "candidate":
         if page == "Dashboard":
             candidate_dashboard()
-
         elif page == "My Resume":
             my_resume_page()
 
     else:
-        st.error(
-            "Unknown account role. "
-            "Please log out and sign in again."
-        )
+        clear_local_auth("Unknown account role. Please sign in again.")
+        st.rerun()

@@ -1,161 +1,68 @@
 import streamlit as st
 
-from cookies import cookie_controller
-
-
-COOKIE_NAME = "resume_manager_token"
+from api import clear_local_auth, logout_user
 
 
 def logout():
-
-    # ==========================================
-    # REMOVE LOGIN COOKIE
-    # ==========================================
-
-    try:
-        cookie_controller.remove(
-            COOKIE_NAME
-        )
-
-    except Exception:
-        pass
-
-    # ==========================================
-    # CLEAR STREAMLIT SESSION
-    # ==========================================
-
-    for key in [
-        "token",
-        "user_id",
-        "full_name",
-        "username",
-        "email",
-        "role",
-        "candidate_detail",
-        "ai_results",
-        "show_all_ai",
-    ]:
-        st.session_state[key] = None
-
+    # Revoke the server-side session first. Even if the API is unavailable,
+    # local logout still continues below.
+    logout_user()
+    clear_local_auth()
     st.rerun()
 
 
 def show_sidebar():
-
     with st.sidebar:
-
-        # ======================================
-        # APPLICATION TITLE
-        # ======================================
-
-        st.title(
-            "📄 Resume Manager"
-        )
-
-        st.caption(
-            "AI Recruitment Workspace"
-        )
-
+        st.title("📄 Resume Manager")
+        st.caption("AI Recruitment Workspace")
         st.divider()
-
-        # ======================================
-        # CURRENT USER
-        # ======================================
 
         role = st.session_state.role
 
-        with st.container(
-            border=True
-        ):
-
-            if role == "admin":
-                st.markdown(
-                    f"### 🛡️ "
-                    f"{st.session_state.full_name}"
-                )
-
+        with st.container(border=True):
+            if role == "super_admin":
+                st.markdown(f"### 👑 {st.session_state.full_name}")
+            elif role == "admin":
+                st.markdown(f"### 🛡️ {st.session_state.full_name}")
             else:
-                st.markdown(
-                    f"### 👤 "
-                    f"{st.session_state.full_name}"
-                )
+                st.markdown(f"### 👤 {st.session_state.full_name}")
 
-            st.caption(
-                f"@{st.session_state.username}"
-            )
+            st.caption(f"@{st.session_state.username}")
 
-            if role == "admin":
-                st.caption(
-                    "🛡️ Administrator"
-                )
-
+            if role == "super_admin":
+                st.caption("👑 Super Administrator")
+            elif role == "admin":
+                st.caption("🛡️ Administrator")
             else:
-                st.caption(
-                    "🎓 Candidate"
-                )
+                st.caption("🎓 Candidate")
 
         st.write("")
 
-        # ======================================
-        # NAVIGATION
-        # ======================================
-
-        if role == "admin":
-
+        if role in {"admin", "super_admin"}:
             page_map = {
-                "🏠 Dashboard":
-                    "Dashboard",
-
-                "👥 Candidates":
-                    "Candidates",
-
-                "📄 All Resumes":
-                    "All Resumes",
-
-                "✨ AI Candidate Search":
-                    "AI Candidate Search",
+                "🏠 Dashboard": "Dashboard",
+                "👥 Candidates": "Candidates",
+                "📄 All Resumes": "All Resumes",
+                "✨ AI Candidate Search": "AI Candidate Search",
             }
-
+            if role == "super_admin":
+                page_map["👑 Admin Management"] = "Admin Management"
         else:
-
             page_map = {
-                "🏠 Dashboard":
-                    "Dashboard",
-
-                "📄 My Resume":
-                    "My Resume",
+                "🏠 Dashboard": "Dashboard",
+                "📄 My Resume": "My Resume",
             }
 
         selected = st.radio(
             "Navigation",
-            list(
-                page_map.keys()
-            ),
+            list(page_map.keys()),
             label_visibility="collapsed",
         )
 
-        # ======================================
-        # LOGIN STATUS
-        # ======================================
-
         st.divider()
+        st.caption("🔐 Signed in securely with JWT")
 
-        st.caption(
-            "🔐 Signed in securely with JWT"
-        )
-
-        # ======================================
-        # LOGOUT
-        # ======================================
-
-        if st.button(
-            "🚪 Logout",
-            use_container_width=True,
-        ):
+        if st.button("🚪 Logout", use_container_width=True):
             logout()
-
-    # ==========================================
-    # RETURN ORIGINAL PAGE NAME
-    # ==========================================
 
     return page_map[selected]

@@ -1,7 +1,10 @@
 from fastapi import HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.user_model import User
+from app.schemas.user_schema import AdminCreate
+from app.utils.auth import hash_password
 from app.utils.logger import logger
 
 
@@ -60,10 +63,10 @@ def delete_candidate_service(user_id: int, db: Session) -> None:
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Candidate not found")
-    if user.role == "admin":
+    if user.role in {"admin", "super_admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin account cannot be deleted",
+            detail="Administrator account cannot be deleted from the candidate endpoint",
         )
     if user.role != "candidate":
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -76,3 +79,49 @@ def delete_candidate_service(user_id: int, db: Session) -> None:
         db.rollback()
         logger.exception("Failed to delete candidate user_id=%s", user_id)
         raise HTTPException(status_code=500, detail="Unable to delete candidate") from error
+
+
+def get_admin_accounts_service(db: Session) -> list[User]:
+    return (
+        db.query(User)
+        .filter(User.role.in_(["super_admin", "admin"]))
+        .order_by(User.id.asc())
+        .all()
+    )
+
+
+def create_admin_account_service(admin_data: AdminCreate, db: Session) -> User:
+    email = str(admin_data.email).strip().lower()
+    username = admin_data.username.strip()
+
+    existing_user = (
+        db.query(User)
+        .filter(or_(User.email == email, User.username == username))
+        .first()
+    )
+    if existing_user:
+        if existing_user.email == email:
+            detail = "An account with this email already exists"
+        else:
+            detail = "Username already exists"
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+    try:
+        admin = User(
+            full_name=admin_data.full_name.strip(),
+            username=username,
+            email=email,
+            password_hash=hash_password(admin_data.password),
+            role="admin",
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        logger.info("Super Admin created administrator user_id=%s email=%s", admin.id, admin.email)
+        return admin
+    except HTTPException:
+        raise
+    except Exception as error:
+        db.rollback()
+        logger.exception("Failed to create administrator email=%s", email)
+        raise HTTPException(status_code=500, detail="Unable to create administrator") from error

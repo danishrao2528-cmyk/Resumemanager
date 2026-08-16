@@ -3,6 +3,9 @@ from typing import Literal
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
+UserRole = Literal["super_admin", "admin", "candidate"]
+
+
 class UserCreate(BaseModel):
     full_name: str = Field(min_length=2, max_length=100)
     username: str = Field(min_length=3, max_length=50)
@@ -38,12 +41,16 @@ class UserCreate(BaseModel):
         return self
 
 
+class AdminCreate(UserCreate):
+    """Only a Super Admin can submit this schema to create an administrator."""
+
+
 class UserOut(BaseModel):
     id: int
     full_name: str
     username: str
     email: EmailStr
-    role: str
+    role: UserRole
 
     model_config = {"from_attributes": True}
 
@@ -55,7 +62,7 @@ class Token(BaseModel):
     full_name: str
     username: str
     email: EmailStr
-    role: Literal["admin", "candidate"]
+    role: UserRole
 
 
 class CandidateListItem(BaseModel):
@@ -71,7 +78,7 @@ class CandidateDetail(BaseModel):
     full_name: str
     username: str
     email: EmailStr
-    role: str
+    role: UserRole
     resume_id: int | None = None
     resume_text: str | None = None
 
