@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
-from cookies import cookie_controller
+from cookies import get_cookie_controller
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -37,7 +37,7 @@ def get_headers():
 
 def clear_local_auth(message: str | None = None):
     try:
-        cookie_controller.remove(COOKIE_NAME)
+        get_cookie_controller().remove(COOKIE_NAME)
     except Exception:
         pass
 

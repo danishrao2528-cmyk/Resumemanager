@@ -3,7 +3,7 @@ import re
 import streamlit as st
 
 from api import login_user, register_candidate, show_api_error
-from cookies import cookie_controller
+from cookies import get_cookie_controller
 
 
 COOKIE_NAME = "resume_manager_token"
@@ -28,7 +28,7 @@ def _save_login(data):
     st.session_state.role = data["role"]
 
     try:
-        cookie_controller.set(COOKIE_NAME, token)
+        get_cookie_controller().set(COOKIE_NAME, token)
     except Exception:
         # Login should still work even if the browser blocks the persistence cookie.
         pass

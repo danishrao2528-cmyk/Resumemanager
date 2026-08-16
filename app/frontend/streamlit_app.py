@@ -16,7 +16,7 @@ from admin_pages import (
 from api import check_session, clear_local_auth, get_current_user_profile
 from auth_page import show_auth_page
 from candidate_pages import candidate_dashboard, my_resume_page
-from cookies import cookie_controller
+from cookies import get_cookie
 from sidebar import show_sidebar
 from styles import apply_styles
 from super_admin_page import admin_management_page
@@ -45,12 +45,14 @@ def _restore_login():
     if st.session_state.token:
         return
 
-    saved_token = cookie_controller.get(COOKIE_NAME)
+    # Read from this browser's cookies without depending on the third-party
+    # component being ready during the first Streamlit run.
+    saved_token = get_cookie(COOKIE_NAME)
+
     if not saved_token:
         return
 
-    # The cookie is never trusted by itself. The backend must validate it and
-    # return the user associated with this exact JWT/session id.
+    # Never trust the cookie by itself. FastAPI validates JWT + server session.
     st.session_state.token = saved_token
     response = get_current_user_profile()
 
@@ -69,11 +71,12 @@ def _restore_login():
 @st.fragment(run_every="30s")
 def _session_watchdog():
     """
-    Check whether an open page has become idle/expired even when the user does
-    nothing. /auth/session-status intentionally does not refresh last_activity.
+    Check whether an open page has become idle/expired even when the user
+    does nothing. /auth/session-status does not refresh last_activity.
     """
     if not st.session_state.get("token"):
         return
+
     check_session()
 
 
