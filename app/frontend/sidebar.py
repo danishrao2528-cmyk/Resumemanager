@@ -3,15 +3,51 @@ import streamlit as st
 from api import clear_local_auth, logout_user
 
 
-def logout():
-    # Revoke the server-side session first. Even if the API is unavailable,
-    # local logout still continues below.
-    logout_user()
-    clear_local_auth()
+COOKIE_NAME = "resume_manager_token"
+
+
+def logout(cookies):
+    """
+    Log out this browser completely.
+
+    1. Ask FastAPI to revoke the server-side AuthSession.
+    2. Overwrite the encrypted JWT cookie with an empty value and save it.
+    3. Clear this Streamlit session's authentication state.
+    4. Rerun so the login page is rendered.
+
+    We intentionally overwrite instead of deleting because the cookie-manager
+    package's deletion path is unreliable, while its write/save path is already
+    proven to work in this app for persistent login.
+    """
+
+    response = logout_user()
+
+    try:
+        cookies[COOKIE_NAME] = ""
+        cookies.save()
+    except Exception as error:
+        st.error(f"Logout cookie could not be cleared: {error}")
+        return
+
+    clear_local_auth(remove_persistent_cookie=False)
+
+    if response is None:
+        st.session_state["auth_notice"] = (
+            "You have been logged out from this browser. The API could not be "
+            "reached to revoke the server session."
+        )
+    elif response.status_code in {204, 401}:
+        st.session_state["auth_notice"] = "You have been logged out."
+    else:
+        st.session_state["auth_notice"] = (
+            "You have been logged out from this browser, but the server "
+            f"returned HTTP {response.status_code} while revoking the session."
+        )
+
     st.rerun()
 
 
-def show_sidebar():
+def show_sidebar(cookies):
     with st.sidebar:
         st.title("📄 Resume Manager")
         st.caption("AI Recruitment Workspace")
@@ -63,6 +99,6 @@ def show_sidebar():
         st.caption("🔐 Signed in securely with JWT")
 
         if st.button("🚪 Logout", use_container_width=True):
-            logout()
+            logout(cookies)
 
     return page_map[selected]

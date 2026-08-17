@@ -10,4 +10,4 @@ python-multipart>=0.0.9,<1.0
 google-genai>=1.0,<3.0
 requests>=2.32,<3.0
 streamlit>=1.38,<2.0
-streamlit-cookies-controller
+streamlit-cookies-manager-ext==0.1.0
